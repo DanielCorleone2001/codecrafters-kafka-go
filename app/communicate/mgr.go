@@ -90,14 +90,32 @@ func (r *requestMessage) String() string {
 	return sb.String()
 }
 
+const (
+	ErrorCode_Success             uint16 = 0
+	ErrorCode_UNSUPPORTED_VERSION uint16 = 35
+)
+
 type responseMessage struct {
 	MessageSize   uint32
 	CorrelationID uint32
+	ErrorCode     uint16
+}
+
+func buildResponseMessage(correlationID uint32, requestAPIKey uint16) *responseMessage {
+	r := &responseMessage{CorrelationID: correlationID}
+	switch requestAPIKey {
+	case 0, 1, 2, 3, 4:
+		r.ErrorCode = ErrorCode_Success
+	default:
+		r.ErrorCode = ErrorCode_UNSUPPORTED_VERSION
+	}
+	return r
 }
 
 func (m *connManager) writeResponseMessage(resp *responseMessage) {
 	m.writeMessageSize(resp)
 	m.writeCorrelationID(resp)
+	m.writeErrorCode(resp)
 }
 
 func (m *connManager) writeBytes(b []byte) {
@@ -117,6 +135,11 @@ func (m *connManager) writeMessageSize(resp *responseMessage) {
 func (m *connManager) writeCorrelationID(resp *responseMessage) {
 	m.writeBytes(binary.BigEndian.AppendUint32([]byte{}, resp.CorrelationID))
 }
+
+func (m *connManager) writeErrorCode(resp *responseMessage) {
+	m.writeBytes(binary.BigEndian.AppendUint16([]byte{}, resp.ErrorCode))
+}
+
 func (m *connManager) onHandle() {
 	req := m.readRequest()
 
