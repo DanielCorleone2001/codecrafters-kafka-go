@@ -1,67 +1,12 @@
 package communicate
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
 	"net"
 )
 
 func HandleConn(conn net.Conn) {
-	defer conn.Close()
+	mgr := ConnManager(conn)
+	defer mgr.Close()
 
-	b := make([]byte, 1024)
-	_, err := conn.Read(b)
-	if err != nil {
-		fmt.Println("read err,err:", err.Error())
-		return
-	}
-
-	r := newResponseBuilder()
-	r.writeMessageSize(defaultMessageSize())
-	r.writeCorrelationID(defaultCorrelationID())
-
-	_, err = conn.Write(r.dump())
-	if err != nil {
-		fmt.Println("write err,err:", err.Error())
-	}
-}
-
-func newResponseBuilder() *responseBuilder {
-	return &responseBuilder{
-		buf: &bytes.Buffer{},
-	}
-}
-
-type responseBuilder struct {
-	buf *bytes.Buffer
-}
-
-func (r *responseBuilder) writeMessageSize(ms messageSize) {
-	r.buf.WriteByte(ms[0])
-	r.buf.WriteByte(ms[1])
-	r.buf.WriteByte(ms[2])
-	r.buf.WriteByte(ms[3])
-}
-
-func (r *responseBuilder) writeCorrelationID(c correlationID) {
-	r.buf.WriteByte(c[0])
-	r.buf.WriteByte(c[1])
-	r.buf.WriteByte(c[2])
-	r.buf.WriteByte(c[3])
-}
-
-func (r *responseBuilder) dump() []byte {
-	return r.buf.Bytes()
-}
-
-type messageSize []byte
-type correlationID []byte
-
-func defaultCorrelationID() correlationID {
-	return binary.BigEndian.AppendUint32([]byte{}, 7)
-}
-
-func defaultMessageSize() messageSize {
-	return binary.BigEndian.AppendUint32([]byte{}, 0)
+	mgr.onHandle()
 }
