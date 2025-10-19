@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 )
 
 type connManager struct {
@@ -63,18 +64,30 @@ func (m *connManager) readCorrelationID(reader io.Reader) uint32 {
 
 func (m *connManager) readRequest() *requestMessage {
 	messageSize := m.readMessageSize()
-	buffer := bytes.NewBuffer(m.readLength(int(messageSize), m.conn))
+	buffer := bytes.NewBuffer(m.readLength(8, m.conn)) //todo:fixme
 	requestAPIKey := m.readRequestAPIKey(buffer)
 	requestAPIVersion := m.readRequestAPIVersion(buffer)
 	correlationID := m.readCorrelationID(buffer)
 
-	return &requestMessage{
+	req := &requestMessage{
+		MessageSize:       messageSize,
 		RequestAPIKey:     requestAPIKey,
 		RequestAPIVersion: requestAPIVersion,
 		CorrelationID:     correlationID,
 		ClientID:          "",
 		buf:               buffer,
 	}
+	fmt.Println(req)
+	return req
+}
+
+func (r *requestMessage) String() string {
+	sb := &strings.Builder{}
+	_, _ = fmt.Fprintf(sb, "message size:%d\n", r.MessageSize)
+	_, _ = fmt.Fprintf(sb, "request api key:%d\n", r.RequestAPIKey)
+	_, _ = fmt.Fprintf(sb, "request api version:%d\n", r.RequestAPIVersion)
+	_, _ = fmt.Fprintf(sb, "request correlation id:%d\n", r.CorrelationID)
+	return sb.String()
 }
 
 type responseMessage struct {

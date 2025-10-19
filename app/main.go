@@ -24,18 +24,19 @@ func main() {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*5))
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(60*time.Second))
 	defer cancel()
+	go func() {
+		<-ctx.Done()
+		_ = l.Close()
+	}()
 	for {
-		select {
-		case <-ctx.Done():
-			fmt.Println("deadline exceed, system exit")
-			return
-		default:
-		}
-
 		conn, err := l.Accept()
 		if err != nil {
+			if ctx.Err() != nil {
+				fmt.Println("deadline exceed, system exit")
+				return
+			}
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
