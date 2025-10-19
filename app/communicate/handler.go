@@ -18,7 +18,7 @@ func HandleConn(conn net.Conn) {
 	}
 
 	r := newResponseBuilder()
-	r.writeMessageSize([]byte{0x00, 0x00, 0x00, 0x00})
+	r.writeMessageSize(defaultMessageSize())
 	r.writeCorrelationID(defaultCorrelationID())
 
 	_, err = conn.Write(r.dump())
@@ -60,4 +60,8 @@ type correlationID []byte
 
 func defaultCorrelationID() correlationID {
 	return binary.BigEndian.AppendUint32([]byte{}, 7)
+}
+
+func defaultMessageSize() messageSize {
+	return binary.BigEndian.AppendUint32([]byte{}, 0)
 }
