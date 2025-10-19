@@ -143,6 +143,6 @@ func (m *connManager) writeErrorCode(resp *responseMessage) {
 func (m *connManager) onHandle() {
 	req := m.readRequest()
 
-	resp := &responseMessage{MessageSize: 0, CorrelationID: req.CorrelationID}
+	resp := buildResponseMessage(req.CorrelationID, req.RequestAPIVersion)
 	m.writeResponseMessage(resp)
 }
