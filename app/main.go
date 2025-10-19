@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/codecrafters-io/kafka-starter-go/app/communicate"
 	"net"
 	"os"
+	"time"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -21,9 +24,22 @@ func main() {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
 	}
-	_, err = l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*5))
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("deadline exceed, system exit")
+			return
+		default:
+		}
+
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+
+		go communicate.HandleConn(conn)
 	}
 }
