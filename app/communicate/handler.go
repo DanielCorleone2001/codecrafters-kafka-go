@@ -28,9 +28,8 @@ func HandleConn(conn net.Conn) {
 }
 
 func newResponseBuilder() *responseBuilder {
-	b := make([]byte, 256)
 	return &responseBuilder{
-		buf: bytes.NewBuffer(b),
+		buf: &bytes.Buffer{},
 	}
 }
 
