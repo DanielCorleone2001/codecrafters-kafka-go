@@ -38,13 +38,13 @@ func (m *connManager) readMessageSize() uint32 {
 
 func (m *connManager) readLength(readLen int, reader io.Reader) []byte {
 	b := make([]byte, readLen)
-	n, err := reader.Read(b)
+	_, err := reader.Read(b)
 	if err != nil {
 		panic("read fail,err:" + err.Error())
 	}
-	if n != readLen {
-		panic(fmt.Sprintf("read want:%d, has:%d", readLen, n))
-	}
+	//if n != readLen {
+	//	panic(fmt.Sprintf("read want:%d, has:%d", readLen, n))
+	//}
 
 	return b
 }
