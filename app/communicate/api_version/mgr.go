@@ -203,7 +203,7 @@ type APIVersion struct {
 func (m *APIVersionConnManager) writeResponseMessage(resp *APIVersionResponseMessage) {
 	m.writeMessageSize(resp)
 	m.writeHeader(resp)
-	m.writeErrorCode(resp)
+	m.writeBody(resp)
 }
 
 func (m *APIVersionConnManager) writeBytes(b []byte) {
