@@ -7,7 +7,7 @@ import (
 
 func HandleConn(conn net.Conn) {
 	mgr := api_version.APIVersionManager(conn)
-	defer mgr.Close()
-
-	mgr.OnHandle()
+	for {
+		mgr.OnHandle()
+	}
 }

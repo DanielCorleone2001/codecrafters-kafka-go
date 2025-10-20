@@ -13,6 +13,8 @@ import (
 var _ = net.Listen
 var _ = os.Exit
 
+var ServerStop = time.Now().Add(60 * time.Second)
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
@@ -24,7 +26,7 @@ func main() {
 		fmt.Println("Failed to bind to port 9092")
 		os.Exit(1)
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(60*time.Second))
+	ctx, cancel := context.WithDeadline(context.Background(), ServerStop)
 	defer cancel()
 	go func() {
 		<-ctx.Done()
@@ -41,6 +43,9 @@ func main() {
 			os.Exit(1)
 		}
 
+		if err = conn.SetDeadline(ServerStop); err != nil {
+			panic(err)
+		}
 		go communicate.HandleConn(conn)
 	}
 }
