@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/codecrafters-io/kafka-starter-go/app/communicate"
+	"github.com/codecrafters-io/kafka-starter-go/app/api"
 	"net"
 	"os"
 	"time"
@@ -46,6 +46,6 @@ func main() {
 		if err = conn.SetDeadline(ServerStop); err != nil {
 			panic(err)
 		}
-		go communicate.HandleConn(conn)
+		go api.HandleConn(conn)
 	}
 }
