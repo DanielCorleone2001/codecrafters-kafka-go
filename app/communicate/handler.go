@@ -1,13 +1,17 @@
 package communicate
 
-import (
-	"github.com/codecrafters-io/kafka-starter-go/app/communicate/api_version"
-	"net"
-)
+import "net"
 
-func HandleConn(conn net.Conn) {
-	mgr := api_version.APIVersionManager(conn)
-	for {
-		mgr.OnHandle()
-	}
+type APIHandler interface {
+	HandleAPIEvent(req *RequestMetaInfo, conn net.Conn)
+}
+
+var _ APIHandler = &todoHandler{}
+
+type todoHandler struct {
+}
+
+func (t todoHandler) HandleAPIEvent(req *RequestMetaInfo, conn net.Conn) {
+	//TODO implement me
+	panic("implement me")
 }
