@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 const (
@@ -22,6 +23,15 @@ func NewConnManager(conn net.Conn) *ConnManager {
 	return &ConnManager{
 		conn: conn,
 	}
+}
+
+func (h APICommonRequestHeader) String() string {
+	sb := &strings.Builder{}
+	_, _ = fmt.Fprintf(sb, "api key:%d\n", h.RequestAPIKey)
+	_, _ = fmt.Fprintf(sb, "api version:%d\n", h.RequestAPIVersion)
+	_, _ = fmt.Fprintf(sb, "CorrelationID:%d\n", h.CorrelationID)
+	_, _ = fmt.Fprintf(sb, "ClientID:%s\n", h.ClientID.Contents)
+	return sb.String()
 }
 
 type APICommonRequestHeader struct {
@@ -99,24 +109,28 @@ func (m *ConnManager) ParseRequestMetaInfo() *RequestMetaInfo {
 	cid := m.readRequestHeaderClientID(buffer)
 	m.readTagBuffer(buffer)
 
+	header := &APICommonRequestHeader{
+		RequestAPIKey:     requestAPIKey,
+		RequestAPIVersion: requestAPIVersion,
+		CorrelationID:     correlationID,
+		ClientID:          cid,
+	}
+
+	fmt.Println(header)
 	return &RequestMetaInfo{
-		MessageSize: messageSize,
-		Header: &APICommonRequestHeader{
-			RequestAPIKey:     requestAPIKey,
-			RequestAPIVersion: requestAPIVersion,
-			CorrelationID:     correlationID,
-			ClientID:          cid,
-		},
+		MessageSize:    messageSize,
+		Header:         header,
 		BodyDataSource: buffer,
 	}
 }
 
 func (m *ConnManager) BuildConnHandler(rm *RequestMetaInfo) APIHandler {
+	fmt.Println(rm.Header.RequestAPIKey)
 	switch rm.Header.RequestAPIKey {
 	case APIType_APIVersions:
 		return NewAPIVersionHandler(m.conn)
 	case APIType_DescribeTopicPartitions:
-		return &todoHandler{}
+		return NewDescribeTopicPartitionHandler()
 	default:
 		return &todoHandler{}
 	}
