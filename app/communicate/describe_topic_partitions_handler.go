@@ -208,7 +208,7 @@ func (d *DescribeTopicPartitionHandler) buildResponseTopicArray() *ResponseTopic
 
 func (d *DescribeTopicPartitionHandler) buildTopicName() *ResponseTopicName {
 	topicName := &ResponseTopicName{}
-	topicName.StringContent = []byte{'f', 'o', 'o'}
+	topicName.StringContent = d.reqBody.TopicList[0].TopicName
 	topicName.StringLength = uint8(len(topicName.StringContent) + 1)
 	return topicName
 }
