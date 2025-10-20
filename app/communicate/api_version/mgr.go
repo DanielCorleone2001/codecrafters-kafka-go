@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 )
 
@@ -62,13 +63,14 @@ func (m *APIVersionConnManager) readMessageSize() uint32 {
 
 func (m *APIVersionConnManager) readLength(readLen int, reader io.Reader) []byte {
 	b := make([]byte, readLen)
-	_, err := reader.Read(b)
+	n, err := reader.Read(b)
 	if err != nil { //todo?
-		panic("read fail,err:" + err.Error())
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	//if n != readLen {
-	//	panic(fmt.Sprintf("read want:%d, has:%d", readLen, n))
-	//}
+	if n != readLen {
+		panic(fmt.Sprintf("read want:%d, has:%d", readLen, n))
+	}
 
 	return b
 }
