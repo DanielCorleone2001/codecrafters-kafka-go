@@ -100,7 +100,7 @@ func (m *APIVersionConnManager) readTagBuffer(reader io.Reader) {
 
 func (m *APIVersionConnManager) readRequestBodyClientID(reader io.Reader) *APIVersionRequestBodyClientID {
 	length := m.readLength(1, reader)
-	content := m.readLength(int(length[0]), reader)
+	content := m.readLength(int(length[0]-1), reader)
 
 	return &APIVersionRequestBodyClientID{
 		Length:   length[0],
@@ -110,7 +110,7 @@ func (m *APIVersionConnManager) readRequestBodyClientID(reader io.Reader) *APIVe
 
 func (m *APIVersionConnManager) readClientSoftwareVersion(reader io.Reader) *APIVersionClientSoftwareVersion {
 	length := m.readLength(1, reader)
-	contents := m.readLength(int(length[0]), reader)
+	contents := m.readLength(int(length[0]-1), reader)
 
 	return &APIVersionClientSoftwareVersion{
 		Length:   length[0],
@@ -299,7 +299,7 @@ func (m *APIVersionConnManager) buildResponseBody(req *APIVersionRequestMessage)
 	return body
 }
 
-func (m *APIVersionConnManager) onHandle() {
+func (m *APIVersionConnManager) OnHandle() {
 	req := m.readRequest()
 	resp := m.buildAPIVersionResponseMessage(req)
 	m.writeResponseMessage(resp)
