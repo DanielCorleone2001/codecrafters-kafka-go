@@ -286,7 +286,7 @@ func (m *APIVersionConnManager) buildResponseBody(req *APIVersionRequestMessage)
 	apiVersions := &APIVersionsArray{
 		VersionList: []*APIVersion{
 			{
-				APIKey:                 1,
+				APIKey:                 req.Header.RequestAPIKey,
 				MinSupportedAPIVersion: 0,
 				MaxSupportedAPIVersion: 4,
 			},
