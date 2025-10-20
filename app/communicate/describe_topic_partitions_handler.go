@@ -41,7 +41,7 @@ func (d *DescribeTopicPartitionHandler) ParseTopicArray() *RequestTopicArray {
 	total := int(arrayLength[0] - 1)
 	topicArray := &RequestTopicArray{
 		ArrayLength: arrayLength[0],
-		TopicList:   make([]*RequestTopic, total),
+		TopicList:   make([]*RequestTopic, 0, total),
 	}
 	for total > 0 {
 		topicArray.TopicList = append(topicArray.TopicList, d.ParseTopic())
