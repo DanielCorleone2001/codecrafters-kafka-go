@@ -85,8 +85,7 @@ type LogFileParser struct {
 func (p *LogFileParser) initDataSource(filePath string) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
 	p.f = f
 	p.fileReader = bufio.NewReader(f)
