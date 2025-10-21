@@ -8,7 +8,7 @@ import (
 
 var (
 	initOnce sync.Once
-	s        *svc
+	s        = &svc{}
 )
 
 const (
