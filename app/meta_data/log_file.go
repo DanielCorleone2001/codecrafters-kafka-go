@@ -190,7 +190,7 @@ func (p *LogFileParser) parseSingleRecord(reader io.Reader) *LogRecord {
 	}
 	r.ValueLength = int8(util.ReadLength(RecordValueLengthBytes, reader)[0])
 	if r.ValueLength > 0 {
-		data := util.ReadLength(int(r.KeyLength), reader)
+		data := util.ReadLength(int(r.ValueLength), reader)
 		dataSource := bytes.NewBuffer(data)
 		r.Value = Decode2RecordValue(dataSource)
 	}
