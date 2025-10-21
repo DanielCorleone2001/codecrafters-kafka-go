@@ -59,23 +59,23 @@ type LogRecordBatch struct {
 }
 
 type LogRecord struct {
-	Length int8
+	Length int32
 
 	Attributes uint8
 
-	TimestampDelta int8 // signed
+	TimestampDelta int64
 
-	OffsetDelta int8 // signed
+	OffsetDelta int32
 
-	KeyLength int8 // signed
+	KeyLength int32
 
 	Key []byte
 
-	ValueLength int8
+	ValueLength int32
 
 	Value RecordValue
 
-	HeadersArrayCount uint8
+	HeadersArrayCount int32
 }
 
 type LogFileParser struct {
@@ -114,7 +114,7 @@ func (p *LogFileParser) hasMore() bool {
 	if p.fileReader.Buffered() > 0 {
 		return true
 	}
-	_, err := p.fileReader.Peek(1)
+	_, err := p.fileReader.Peek(BaseOffsetBytes + BatchLengthBytes)
 	if err == nil {
 		return true
 	}
@@ -184,20 +184,25 @@ const (
 func (p *LogFileParser) parseSingleRecord(reader io.Reader) *LogRecord {
 	r := &LogRecord{}
 
-	r.Length = util.ZigzagDecodeInt8(util.ReadLength(RecordLengthBytes, reader))
-	r.Attributes = util.ReadLength(RecordAttributesBytes, reader)[0]
-	r.TimestampDelta = util.ZigzagDecodeInt8(util.ReadLength(RecordTimestampDeltaBytes, reader))
-	r.OffsetDelta = util.ZigzagDecodeInt8(util.ReadLength(RecordOffsetDeltaBytes, reader))
-	r.KeyLength = util.ZigzagDecodeInt8(util.ReadLength(RecordKeyLengthBytes, reader))
-	if r.KeyLength > 0 {
-		r.Key = util.ReadLength(int(r.KeyLength), reader)
+	r.Length = util.ReadVarint32(reader)
+
+	if r.Length <= 0 {
+		return r
 	}
-	r.ValueLength = util.ZigzagDecodeInt8(util.ReadLength(RecordValueLengthBytes, reader))
+	rest := bytes.NewReader(util.ReadLength(int(r.Length), reader))
+	r.Attributes = util.ReadLength(RecordAttributesBytes, rest)[0]
+	r.TimestampDelta = util.ReadVarint64(rest)
+	r.OffsetDelta = util.ReadVarint32(rest)
+	r.KeyLength = util.ReadVarint32(rest)
+	if r.KeyLength > 0 {
+		r.Key = util.ReadLength(int(r.KeyLength), rest)
+	}
+	r.ValueLength = util.ReadVarint32(rest)
 	if r.ValueLength > 0 {
-		data := util.ReadLength(int(r.ValueLength), reader)
-		dataSource := bytes.NewBuffer(data)
+		data := util.ReadLength(int(r.ValueLength), rest)
+		dataSource := bytes.NewReader(data)
 		r.Value = Decode2RecordValue(dataSource)
 	}
-	r.HeadersArrayCount = util.ReadLength(RecordHeaderArrayCountBytes, reader)[0]
+	r.HeadersArrayCount = util.ReadVarint32(rest)
 	return r
 }
