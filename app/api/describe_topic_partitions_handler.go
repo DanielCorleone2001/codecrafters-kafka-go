@@ -337,6 +337,7 @@ func (d *DescribeTopicPartitionHandler) BuildResponse() *DescribePartitionRespon
 }
 
 func (d *DescribeTopicPartitionHandler) HandleAPIEvent(req *RequestMetaInfo, conn net.Conn) {
+	fmt.Println("handle DescribeTopicPartition")
 	d.meta = req
 	d.conn = conn
 	d.reqBody = d.ParseRequestBody()
