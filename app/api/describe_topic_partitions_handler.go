@@ -415,6 +415,7 @@ func (d *DescribeTopicPartitionHandler) writePartitionArray(topic *ResponseTopic
 		util.WriteBytes([]byte{p.ReplicaNodeInfo.ArrayLength}, d.conn)
 		util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, p.ReplicaNodeInfo.ReplicateNode), d.conn)
 		util.WriteBytes([]byte{p.ISRNodes.ArrayLength}, d.conn)
+		util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, p.ISRNodes.ISRNodeID), d.conn)
 		util.WriteBytes([]byte{p.EligibleLeaderReplicas.ArrayLength}, d.conn)
 		util.WriteBytes([]byte{p.LastKnownELR.ArrayLength}, d.conn)
 		util.WriteBytes([]byte{p.OfflineReplicas.ArrayLength}, d.conn)
