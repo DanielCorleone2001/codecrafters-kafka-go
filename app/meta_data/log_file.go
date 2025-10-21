@@ -91,9 +91,6 @@ func (p *LogFileParser) initDataSource(filePath string) {
 	}
 	p.f = f
 	p.fileReader = bufio.NewReader(f)
-
-	c, _ := os.ReadFile(filePath)
-	fmt.Printf("%x\n", c)
 }
 
 func (p *LogFileParser) readN(n int) []byte {
