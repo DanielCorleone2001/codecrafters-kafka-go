@@ -278,7 +278,7 @@ func (d *DescribeTopicPartitionHandler) buildPartitionArray(partitions []*meta_d
 	for _, p := range partitions {
 		pr.Partitions = append(pr.Partitions, &Partition{
 			ErrorCode:      0x0000,
-			PartitionIndex: 0x00000001,
+			PartitionIndex: p.PartitionID,
 			LeaderID:       p.LeaderID,
 			LeaderEpoch:    p.LeaderEpoch,
 			ReplicaNodeInfo: &ReplicaNodeInfo{
