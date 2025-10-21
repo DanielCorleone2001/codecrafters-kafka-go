@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/binary"
+	"github.com/codecrafters-io/kafka-starter-go/app/util"
 	"net"
 )
 
@@ -40,8 +41,8 @@ type APIVersionRequestBody struct {
 }
 
 func (h *APIVersionHandler) ParseRequestBodyClientID() *APIVersionRequestBodyClientID {
-	length := ReadLength(1, h.meta.BodyDataSource)
-	content := ReadLength(int(length[0]-1), h.meta.BodyDataSource)
+	length := util.ReadLength(1, h.meta.BodyDataSource)
+	content := util.ReadLength(int(length[0]-1), h.meta.BodyDataSource)
 
 	return &APIVersionRequestBodyClientID{
 		Length:   length[0],
@@ -50,8 +51,8 @@ func (h *APIVersionHandler) ParseRequestBodyClientID() *APIVersionRequestBodyCli
 }
 
 func (h *APIVersionHandler) ParseClientSoftwareVersion() *APIVersionClientSoftwareVersion {
-	length := ReadLength(1, h.meta.BodyDataSource)
-	contents := ReadLength(int(length[0]-1), h.meta.BodyDataSource)
+	length := util.ReadLength(1, h.meta.BodyDataSource)
+	contents := util.ReadLength(int(length[0]-1), h.meta.BodyDataSource)
 
 	return &APIVersionClientSoftwareVersion{
 		Length:   length[0],
@@ -60,7 +61,7 @@ func (h *APIVersionHandler) ParseClientSoftwareVersion() *APIVersionClientSoftwa
 }
 
 func (h *APIVersionHandler) ParseTagBuffer() {
-	ReadLength(1, h.meta.BodyDataSource)
+	util.ReadLength(1, h.meta.BodyDataSource)
 }
 
 func (h *APIVersionHandler) ParseRequestBody() *APIVersionRequestBody {
@@ -169,33 +170,33 @@ func (h *APIVersionHandler) writeResponse(resp *APIVersionResponse) {
 }
 
 func (h *APIVersionHandler) writeMessageSize(resp *APIVersionResponse) {
-	WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.MessageSize), h.conn)
+	util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.MessageSize), h.conn)
 }
 
 func (h *APIVersionHandler) writeHeader(resp *APIVersionResponse) {
-	WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.Header.CorrelationID), h.conn)
+	util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.Header.CorrelationID), h.conn)
 }
 
 func (h *APIVersionHandler) writeErrorCode(resp *APIVersionResponse) {
-	WriteBytes(binary.BigEndian.AppendUint16([]byte{}, resp.Body.ErrorCode), h.conn)
+	util.WriteBytes(binary.BigEndian.AppendUint16([]byte{}, resp.Body.ErrorCode), h.conn)
 }
 
 func (h *APIVersionHandler) writeTagBuffer() {
-	WriteBytes([]byte{0x00}, h.conn)
+	util.WriteBytes([]byte{0x00}, h.conn)
 }
 
 func (h *APIVersionHandler) writeAPIVersionsArray(resp *APIVersionResponse) {
-	WriteBytes([]byte{resp.Body.APIVersions.ArrayLength}, h.conn)
+	util.WriteBytes([]byte{resp.Body.APIVersions.ArrayLength}, h.conn)
 	for _, apiVersion := range resp.Body.APIVersions.VersionList {
-		WriteBytes(binary.BigEndian.AppendUint16([]byte{}, apiVersion.APIKey), h.conn)
-		WriteBytes(binary.BigEndian.AppendUint16([]byte{}, apiVersion.MinSupportedAPIVersion), h.conn)
-		WriteBytes(binary.BigEndian.AppendUint16([]byte{}, apiVersion.MaxSupportedAPIVersion), h.conn)
+		util.WriteBytes(binary.BigEndian.AppendUint16([]byte{}, apiVersion.APIKey), h.conn)
+		util.WriteBytes(binary.BigEndian.AppendUint16([]byte{}, apiVersion.MinSupportedAPIVersion), h.conn)
+		util.WriteBytes(binary.BigEndian.AppendUint16([]byte{}, apiVersion.MaxSupportedAPIVersion), h.conn)
 		h.writeTagBuffer()
 	}
 }
 
 func (h *APIVersionHandler) writeThrottleTime(resp *APIVersionResponse) {
-	WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.Body.ThrottleTime), h.conn)
+	util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.Body.ThrottleTime), h.conn)
 }
 
 func (h *APIVersionHandler) writeBody(resp *APIVersionResponse) {
