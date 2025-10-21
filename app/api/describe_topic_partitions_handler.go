@@ -146,7 +146,6 @@ func (r *DescribePartitionResponse) calcMessageSize() {
 			int(r.Body.TopicArray.ResponseTopicList[i].TopicName.StringLength-1) +
 			TopicIDLenBytes + IsInternalLenBytes + PartitionArrayLenBytes +
 			TopicAuthorizedOptionLenBytes + TagBufferBytes
-		bodyBytes += PartitionArrayLenBytes
 		bodyBytes += (PartitionErrorCodeBytes + PartitionIndexBytes +
 			LeaderIDBytes + LeaderEpochBytes + PartitionReplicaNodesArrayLengthBytes +
 			PartitionReplicaNodeBytes + PartitionISRNodesArrayLength + PartitionISRNodeBytes +
