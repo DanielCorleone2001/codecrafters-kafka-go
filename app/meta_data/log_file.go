@@ -89,7 +89,7 @@ func (p *LogFileParser) initDataSource(filePath string) {
 		panic(err)
 	}
 	content, _ := os.ReadFile(filePath)
-	fmt.Println(content)
+	fmt.Printf("%x\n", content)
 	p.f = f
 	p.fileReader = bufio.NewReader(f)
 }
