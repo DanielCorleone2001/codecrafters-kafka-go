@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 )
 
 func ReadLength(readLen int, reader io.Reader) []byte {
@@ -11,6 +12,7 @@ func ReadLength(readLen int, reader io.Reader) []byte {
 	n, err := reader.Read(b)
 	if err != nil { //todo?
 		fmt.Println(err)
+		fmt.Println(string(debug.Stack()))
 		os.Exit(1)
 	}
 	if n != readLen {
