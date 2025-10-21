@@ -9,6 +9,7 @@ import (
 	"github.com/codecrafters-io/kafka-starter-go/app/util"
 	"io"
 	"os"
+	"runtime/debug"
 )
 
 const (
@@ -88,8 +89,6 @@ func (p *LogFileParser) initDataSource(filePath string) {
 		fmt.Println(err)
 		panic(err)
 	}
-	content, _ := os.ReadFile(filePath)
-	fmt.Printf("%x\n", content)
 	p.f = f
 	p.fileReader = bufio.NewReader(f)
 }
@@ -103,7 +102,7 @@ func (p *LogFileParser) readN(n int) []byte {
 	}
 	if read != n {
 		fmt.Println("read want:", n, ",actual:", read)
-		os.Exit(1)
+		panic(fmt.Sprintf("read not match,stack:%s", string(debug.Stack())))
 	}
 	return b
 }
@@ -182,15 +181,15 @@ const (
 func (p *LogFileParser) parseSingleRecord(reader io.Reader) *LogRecord {
 	r := &LogRecord{}
 
-	r.Length = int8(util.ReadLength(RecordLengthBytes, reader)[0])
+	r.Length = util.ZigzagDecodeInt8(util.ReadLength(RecordLengthBytes, reader))
 	r.Attributes = util.ReadLength(RecordAttributesBytes, reader)[0]
-	r.TimestampDelta = int8(util.ReadLength(RecordTimestampDeltaBytes, reader)[0])
-	r.OffsetDelta = int8(util.ReadLength(RecordOffsetDeltaBytes, reader)[0])
-	r.KeyLength = int8(util.ReadLength(RecordKeyLengthBytes, reader)[0])
+	r.TimestampDelta = util.ZigzagDecodeInt8(util.ReadLength(RecordTimestampDeltaBytes, reader))
+	r.OffsetDelta = util.ZigzagDecodeInt8(util.ReadLength(RecordOffsetDeltaBytes, reader))
+	r.KeyLength = util.ZigzagDecodeInt8(util.ReadLength(RecordKeyLengthBytes, reader))
 	if r.KeyLength > 0 {
 		r.Key = util.ReadLength(int(r.KeyLength), reader)
 	}
-	r.ValueLength = int8(util.ReadLength(RecordValueLengthBytes, reader)[0])
+	r.ValueLength = util.ZigzagDecodeInt8(util.ReadLength(RecordValueLengthBytes, reader))
 	if r.ValueLength > 0 {
 		data := util.ReadLength(int(r.ValueLength), reader)
 		dataSource := bytes.NewBuffer(data)
