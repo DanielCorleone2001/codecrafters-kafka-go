@@ -85,6 +85,7 @@ type LogFileParser struct {
 func (p *LogFileParser) initDataSource(filePath string) {
 	f, err := os.Open(filePath)
 	if err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 	p.f = f
