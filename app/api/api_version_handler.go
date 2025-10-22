@@ -137,6 +137,11 @@ func (h *APIVersionHandler) BuildResponseBody() *APIVersionResponseBody {
 				MinSupportedAPIVersion: 0,
 				MaxSupportedAPIVersion: 0,
 			},
+			{
+				APIKey:                 APIType_Fetch,
+				MinSupportedAPIVersion: 0,
+				MaxSupportedAPIVersion: 16,
+			},
 		},
 	}
 	apiVersions.ArrayLength = uint8(len(apiVersions.VersionList) + 1)

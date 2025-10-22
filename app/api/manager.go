@@ -13,6 +13,7 @@ import (
 const (
 	APIType_APIVersions             uint16 = 18
 	APIType_DescribeTopicPartitions uint16 = 75
+	APIType_Fetch                   uint16 = 1
 )
 
 type ConnManager struct {
