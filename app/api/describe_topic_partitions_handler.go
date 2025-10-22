@@ -8,6 +8,7 @@ import (
 	"github.com/codecrafters-io/kafka-starter-go/app/util"
 	"io"
 	"net"
+	"sort"
 )
 
 type describeTopicPartitionHandler struct {
@@ -144,6 +145,12 @@ func (d *describeTopicPartitionHandler) buildResponseTopicArray() *responseTopic
 			})
 	}
 	ta.ArrayLength = uint8(len(ta.ResponseTopicList) + 1)
+
+	sort.Slice(ta.ResponseTopicList, func(i, j int) bool {
+		return bytes.Compare(
+			ta.ResponseTopicList[i].TopicName.StringContent,
+			ta.ResponseTopicList[j].TopicName.StringContent) < 0
+	})
 	return ta
 }
 
