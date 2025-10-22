@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/codecrafters-io/kafka-starter-go/app/util"
 	"io"
@@ -84,9 +85,7 @@ func (r *CommonAPIRequestHeader) Decode(reader io.Reader) {
 	util.ReadN(1, reader)
 }
 
-func ParseRequestMetaInfo(reader io.Reader) (*RequestMetaInfo, io.Reader) {
-	messageSize := binary.BigEndian.Uint32(util.ReadN(4, reader))
-
+func ParseRequestMetaInfo(reader io.Reader, messageSize uint32) (*RequestMetaInfo, io.Reader) {
 	buffer := bytes.NewBuffer(util.ReadN(int(messageSize), reader))
 
 	header := &CommonAPIRequestHeader{}
@@ -113,7 +112,13 @@ func (m *ConnManager) BuildConnHandler(rm *RequestMetaInfo) APIHandler {
 func HandleConn(conn net.Conn) {
 	m := NewConnManager(conn)
 	for {
-		rm, bodyReader := ParseRequestMetaInfo(conn)
+		b := make([]byte, 4)
+		if _, err := conn.Read(b); errors.Is(err, io.EOF) {
+			conn.Close()
+			fmt.Println("server read conn EOF,return")
+			return
+		}
+		rm, bodyReader := ParseRequestMetaInfo(conn, binary.BigEndian.Uint32(b))
 		h := m.BuildConnHandler(rm)
 		h.HandleAPIEvent(rm, bodyReader, conn)
 	}
