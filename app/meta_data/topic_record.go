@@ -32,13 +32,13 @@ func decode2TopicRecord(frameVersion uint8, dataSource io.Reader) *TopicRecord {
 		FrameVersion: frameVersion,
 		RecordType:   RecordType_TopicRecord,
 	}
-	t.Version = util.ReadLength(1, dataSource)[0]
-	t.NameLength = util.ReadLength(1, dataSource)[0]
-	t.TopicName = util.ReadLength(int(t.NameLength-1), dataSource)
-	copy(t.TopicUUID[:], util.ReadLength(16, dataSource))
-	t.TaggedFieldsCount = util.ReadLength(1, dataSource)[0]
+	t.Version = util.ReadN(1, dataSource)[0]
+	t.NameLength = util.ReadN(1, dataSource)[0]
+	t.TopicName = util.ReadN(int(t.NameLength-1), dataSource)
+	copy(t.TopicUUID[:], util.ReadN(16, dataSource))
+	t.TaggedFieldsCount = util.ReadN(1, dataSource)[0]
 	if t.TaggedFieldsCount > 0 {
-		util.ReadLength(int(t.TaggedFieldsCount), dataSource)
+		util.ReadN(int(t.TaggedFieldsCount), dataSource)
 	}
 
 	return t

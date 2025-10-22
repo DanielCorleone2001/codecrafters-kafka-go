@@ -53,23 +53,23 @@ func decode2PartitionRecord(frameVersion uint8, dataSource io.Reader) *Partition
 		FrameVersion: frameVersion,
 		RecordType:   RecordType_PartitionRecord,
 	}
-	p.Version = util.ReadLength(1, dataSource)[0]
-	p.PartitionID = binary.BigEndian.Uint32(util.ReadLength(4, dataSource))
-	copy(p.TopicUUID[:], util.ReadLength(16, dataSource))
-	p.LengthOfReplicaArray = util.ReadLength(1, dataSource)[0]
-	p.ReplicaArray = binary.BigEndian.Uint32(util.ReadLength(4, dataSource))
-	p.LengthOfInSyncReplicaArray = util.ReadLength(1, dataSource)[0]
-	p.InSyncReplicaArray = binary.BigEndian.Uint32(util.ReadLength(4, dataSource))
-	p.LengthOfRemovingReplicaArray = util.ReadLength(1, dataSource)[0]
-	p.LengthOfAddingReplicaArray = util.ReadLength(1, dataSource)[0]
-	p.LeaderID = binary.BigEndian.Uint32(util.ReadLength(4, dataSource))
-	p.LeaderEpoch = binary.BigEndian.Uint32(util.ReadLength(4, dataSource))
-	p.PartitionEpoch = binary.BigEndian.Uint32(util.ReadLength(4, dataSource))
-	p.LengthOfDirectoriesArray = util.ReadLength(1, dataSource)[0]
-	copy(p.DirectoriesArray[:], util.ReadLength(16, dataSource))
-	p.TaggedFieldsCount = util.ReadLength(1, dataSource)[0]
+	p.Version = util.ReadN(1, dataSource)[0]
+	p.PartitionID = binary.BigEndian.Uint32(util.ReadN(4, dataSource))
+	copy(p.TopicUUID[:], util.ReadN(16, dataSource))
+	p.LengthOfReplicaArray = util.ReadN(1, dataSource)[0]
+	p.ReplicaArray = binary.BigEndian.Uint32(util.ReadN(4, dataSource))
+	p.LengthOfInSyncReplicaArray = util.ReadN(1, dataSource)[0]
+	p.InSyncReplicaArray = binary.BigEndian.Uint32(util.ReadN(4, dataSource))
+	p.LengthOfRemovingReplicaArray = util.ReadN(1, dataSource)[0]
+	p.LengthOfAddingReplicaArray = util.ReadN(1, dataSource)[0]
+	p.LeaderID = binary.BigEndian.Uint32(util.ReadN(4, dataSource))
+	p.LeaderEpoch = binary.BigEndian.Uint32(util.ReadN(4, dataSource))
+	p.PartitionEpoch = binary.BigEndian.Uint32(util.ReadN(4, dataSource))
+	p.LengthOfDirectoriesArray = util.ReadN(1, dataSource)[0]
+	copy(p.DirectoriesArray[:], util.ReadN(16, dataSource))
+	p.TaggedFieldsCount = util.ReadN(1, dataSource)[0]
 	if p.TaggedFieldsCount > 0 {
-		util.ReadLength(int(p.TaggedFieldsCount), dataSource)
+		util.ReadN(int(p.TaggedFieldsCount), dataSource)
 	}
 	return p
 }

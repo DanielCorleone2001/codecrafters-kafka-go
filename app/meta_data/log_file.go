@@ -146,17 +146,17 @@ func (p *LogFileParser) parseSingleBatchRecord() *LogRecordBatch {
 
 	reader := bytes.NewBuffer(p.readN(int(rb.LogRecordBatchLength)))
 
-	rb.PartitionLeaderEpoch = binary.BigEndian.Uint32(util.ReadLength(PartitionLeaderEpochBytes, reader))
-	rb.MagicByte = util.ReadLength(MagicByteBytes, reader)[0]
-	rb.CRCChecksum = binary.BigEndian.Uint32(util.ReadLength(CRCChecksumBytes, reader))
-	rb.Attributes = binary.BigEndian.Uint16(util.ReadLength(AttributesBytes, reader))
-	rb.LastOffsetDelta = binary.BigEndian.Uint32(util.ReadLength(LastOffsetDeltaBytes, reader))
-	rb.BaseTimestamp = binary.BigEndian.Uint64(util.ReadLength(BaseTimestampBytes, reader))
-	rb.MaxTimestamp = binary.BigEndian.Uint64(util.ReadLength(MaxTimestampBytes, reader))
-	rb.ProducerID = binary.BigEndian.Uint64(util.ReadLength(ProducerIDBytes, reader))
-	rb.ProducerEpoch = binary.BigEndian.Uint16(util.ReadLength(ProducerEpochBytes, reader))
-	rb.BaseSequence = binary.BigEndian.Uint32(util.ReadLength(BaseSequenceBytes, reader))
-	rb.RecordsLength = binary.BigEndian.Uint32(util.ReadLength(RecordsLengthBytes, reader))
+	rb.PartitionLeaderEpoch = binary.BigEndian.Uint32(util.ReadN(PartitionLeaderEpochBytes, reader))
+	rb.MagicByte = util.ReadN(MagicByteBytes, reader)[0]
+	rb.CRCChecksum = binary.BigEndian.Uint32(util.ReadN(CRCChecksumBytes, reader))
+	rb.Attributes = binary.BigEndian.Uint16(util.ReadN(AttributesBytes, reader))
+	rb.LastOffsetDelta = binary.BigEndian.Uint32(util.ReadN(LastOffsetDeltaBytes, reader))
+	rb.BaseTimestamp = binary.BigEndian.Uint64(util.ReadN(BaseTimestampBytes, reader))
+	rb.MaxTimestamp = binary.BigEndian.Uint64(util.ReadN(MaxTimestampBytes, reader))
+	rb.ProducerID = binary.BigEndian.Uint64(util.ReadN(ProducerIDBytes, reader))
+	rb.ProducerEpoch = binary.BigEndian.Uint16(util.ReadN(ProducerEpochBytes, reader))
+	rb.BaseSequence = binary.BigEndian.Uint32(util.ReadN(BaseSequenceBytes, reader))
+	rb.RecordsLength = binary.BigEndian.Uint32(util.ReadN(RecordsLengthBytes, reader))
 
 	if rb.RecordsLength > 0 {
 		rb.RecordList = make([]*LogRecord, 0, rb.RecordsLength)
@@ -186,17 +186,17 @@ func (p *LogFileParser) parseSingleRecord(reader io.Reader) *LogRecord {
 	if r.Length <= 0 {
 		return r
 	}
-	rest := bytes.NewReader(util.ReadLength(int(r.Length), reader))
-	r.Attributes = util.ReadLength(RecordAttributesBytes, rest)[0]
+	rest := bytes.NewReader(util.ReadN(int(r.Length), reader))
+	r.Attributes = util.ReadN(RecordAttributesBytes, rest)[0]
 	r.TimestampDelta = util.ReadVarint64(rest)
 	r.OffsetDelta = util.ReadVarint32(rest)
 	r.KeyLength = util.ReadVarint32(rest)
 	if r.KeyLength > 0 {
-		r.Key = util.ReadLength(int(r.KeyLength), rest)
+		r.Key = util.ReadN(int(r.KeyLength), rest)
 	}
 	r.ValueLength = util.ReadVarint32(rest)
 	if r.ValueLength > 0 {
-		data := util.ReadLength(int(r.ValueLength), rest)
+		data := util.ReadN(int(r.ValueLength), rest)
 		dataSource := bytes.NewReader(data)
 		r.Value = Decode2RecordValue(dataSource)
 	}

@@ -20,8 +20,8 @@ type RecordValue interface {
 type RecordValueDecoder struct{}
 
 func Decode2RecordValue(dataSource io.Reader) RecordValue {
-	frameVersion := util.ReadLength(1, dataSource)[0]
-	recordType := RecordType(util.ReadLength(1, dataSource)[0])
+	frameVersion := util.ReadN(1, dataSource)[0]
+	recordType := RecordType(util.ReadN(1, dataSource)[0])
 
 	switch recordType {
 	case RecordType_PartitionRecord:

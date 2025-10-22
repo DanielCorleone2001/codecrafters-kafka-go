@@ -1,112 +1,55 @@
 package api
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"github.com/codecrafters-io/kafka-starter-go/app/meta_data"
 	"github.com/codecrafters-io/kafka-starter-go/app/util"
+	"io"
 	"net"
 )
 
-type DescribeTopicPartitionHandler struct {
-	meta    *RequestMetaInfo
-	reqBody *DescribeTopicPartitionRequestBody
-	conn    net.Conn
+type describeTopicPartitionHandler struct {
+	req  *describeTopicPartitionRequest
+	conn net.Conn
 }
 
-func (d DescribeTopicPartitionRequestBody) String() string {
-	f, _ := json.Marshal(d)
+func (b *describeTopicPartitionRequestBody) String() string {
+	f, _ := json.Marshal(b)
 	return string(f)
 }
 
-type DescribeTopicPartitionRequestBody struct {
-	*RequestTopicArray
+func (b *describeTopicPartitionRequestBody) Decode(reader io.Reader) {
+	topicArray := &requestTopicArray{}
+	topicArray.Decode(reader)
+	b.requestTopicArray = topicArray
 
-	ResponsePartitionLimit uint32
-	Cursor                 uint8
+	b.ResponsePartitionLimit = binary.BigEndian.Uint32(util.ReadN(4, reader))
+	b.Cursor = util.ReadN(1, reader)[0]
+	util.ReadN(1, reader)
 }
 
-type RequestTopicArray struct {
-	ArrayLength uint8
-	TopicList   []*RequestTopic
-}
+func (r *requestTopicArray) Decode(reader io.Reader) {
+	r.ArrayLength = util.ReadN(1, reader)[0]
 
-type RequestTopic struct {
-	TopicNameLength uint8
-	TopicName       []byte
-}
+	total := int(r.ArrayLength) - 1
+	r.TopicList = make([]*requestTopic, 0, total)
 
-func (d *DescribeTopicPartitionHandler) ParseTopicArray() *RequestTopicArray {
-	arrayLength := util.ReadLength(1, d.meta.BodyDataSource)
-
-	total := int(arrayLength[0] - 1)
-	topicArray := &RequestTopicArray{
-		ArrayLength: arrayLength[0],
-		TopicList:   make([]*RequestTopic, 0, total),
-	}
 	for total > 0 {
-		topicArray.TopicList = append(topicArray.TopicList, d.ParseTopic())
+		topic := &requestTopic{}
+		topic.Decode(reader)
+		r.TopicList = append(r.TopicList, topic)
+
 		total--
 	}
-
-	return topicArray
 }
 
-func (d *DescribeTopicPartitionHandler) ParseTopic() *RequestTopic {
-	topicNameLength := util.ReadLength(1, d.meta.BodyDataSource)
-	topicName := util.ReadLength(int(topicNameLength[0]-1), d.meta.BodyDataSource)
-
-	util.ReadLength(1, d.meta.BodyDataSource)
-
-	return &RequestTopic{
-		TopicNameLength: topicNameLength[0],
-		TopicName:       topicName,
-	}
+func (r *requestTopic) Decode(reader io.Reader) {
+	r.TopicNameLength = util.ReadN(1, reader)[0]
+	r.TopicName = util.ReadN(int(r.TopicNameLength-1), reader)
+	util.ReadN(1, reader)
 }
-
-func (d *DescribeTopicPartitionHandler) ParseResponsePartitionLimit() uint32 {
-	return binary.BigEndian.Uint32(util.ReadLength(4, d.meta.BodyDataSource))
-}
-
-func (d *DescribeTopicPartitionHandler) ParseCursor() uint8 {
-	return util.ReadLength(1, d.meta.BodyDataSource)[0]
-}
-
-func (d *DescribeTopicPartitionHandler) ParseTagBuffer() {
-	util.ReadLength(1, d.meta.BodyDataSource)
-}
-
-func (d *DescribeTopicPartitionHandler) ParseRequestBody() *DescribeTopicPartitionRequestBody {
-	topicArray := d.ParseTopicArray()
-	l := d.ParseResponsePartitionLimit()
-	cursor := d.ParseCursor()
-
-	d.ParseTagBuffer()
-
-	body := &DescribeTopicPartitionRequestBody{
-		RequestTopicArray:      topicArray,
-		ResponsePartitionLimit: l,
-		Cursor:                 cursor,
-	}
-	fmt.Println(body)
-
-	return body
-}
-
-type DescribePartitionResponse struct {
-	MessageSize uint32
-	Header      *ResponseHeader
-	Body        *DescribePartitionResponseBody
-}
-
-//
-//func (r *DescribePartitionResponse) String() string {
-//	sb := &strings.Builder{}
-//	_, _ = fmt.Fprintf(sb, "message size:%d\n", r.MessageSize)
-//	_, _ = fmt.Fprintf(sb, "header:%d\n", r.Header.CorrelationID)
-//	_, _ = fmt.Fprintf(sb, "body:")
-//}
 
 const (
 	CorrelationIDBytes   = 4
@@ -136,7 +79,7 @@ const (
 	PartitionLastOfflineReplicasBytes     = 1
 )
 
-func (r *DescribePartitionResponse) calcMessageSize() {
+func (r *describePartitionResponse) calcMessageSize() {
 	headerBytes := CorrelationIDBytes + TagBufferBytes
 	bodyBytes := ThrottleTimeBytes + TopicArrayLenBytes + NextCursorBytes + TagBufferBytes
 	totalTopic := int(r.Body.TopicArray.ArrayLength - 1)
@@ -157,98 +100,32 @@ func (r *DescribePartitionResponse) calcMessageSize() {
 	r.MessageSize = uint32(headerBytes + bodyBytes)
 }
 
-type DescribePartitionResponseBody struct {
-	ThrottleTime uint32
-	TopicArray   *ResponseTopicArray
-	NextCursor   uint8
-}
-
-type ResponseTopicArray struct {
-	ArrayLength       uint8
-	ResponseTopicList []*ResponseTopic
-}
-
-type ResponseTopicName struct {
-	StringLength  uint8
-	StringContent []byte
-}
-
-type ResponseTopic struct {
-	ErrorCode uint16
-	TopicName *ResponseTopicName
-	TopicID   [16]byte
-
-	IsInternal uint8
-
-	PartitionArray *PartitionArray
-
-	TopicAuthorizedOption uint32
-}
-
-type PartitionArray struct {
-	PartitionArrayLen uint8
-	Partitions        []*Partition
-}
-
-type Partition struct {
-	ErrorCode              uint16
-	PartitionIndex         uint32
-	LeaderID               uint32
-	LeaderEpoch            uint32
-	ReplicaNodeInfo        *ReplicaNodeInfo
-	ISRNodes               *ISRNodes
-	EligibleLeaderReplicas *EligibleLeaderReplicas
-	LastKnownELR           *LastKnownELR
-	OfflineReplicas        *OfflineReplicas
-}
-
-type OfflineReplicas struct {
-	ArrayLength uint8
-}
-type EligibleLeaderReplicas struct {
-	ArrayLength uint8
-}
-
-type LastKnownELR struct {
-	ArrayLength uint8
-}
-
-type ISRNodes struct {
-	ArrayLength uint8
-	ISRNodeID   uint32
-}
-
-type ReplicaNodeInfo struct {
-	ArrayLength   uint8
-	ReplicateNode uint32
-}
-
 const (
 	ErrCode_UNKNOWN_TOPIC = 0x0003
 )
 
-func (d *DescribeTopicPartitionHandler) buildHeader() *ResponseHeader {
+func (d *describeTopicPartitionHandler) buildHeader() *ResponseHeader {
 	header := &ResponseHeader{
-		CorrelationID: d.meta.Header.CorrelationID,
+		CorrelationID: d.req.Header.CorrelationID,
 	}
 	return header
 }
 
-func (d *DescribeTopicPartitionHandler) buildResponseTopicArray() *ResponseTopicArray {
-	ta := &ResponseTopicArray{
-		ResponseTopicList: make([]*ResponseTopic, 0, len(d.reqBody.TopicList)),
+func (d *describeTopicPartitionHandler) buildResponseTopicArray() *responseTopicArray {
+	ta := &responseTopicArray{
+		ResponseTopicList: make([]*responseTopic, 0, len(d.req.Body.TopicList)),
 	}
 	ta.ArrayLength = uint8(len(ta.ResponseTopicList) + 1)
-	for _, query := range d.reqBody.TopicList {
+	for _, query := range d.req.Body.TopicList {
 		topic, err := meta_data.GetMetaDataService().QueryTopic(query.TopicName)
 		if err != nil { //topic not found
 			ta.ResponseTopicList = append(ta.ResponseTopicList,
-				&ResponseTopic{
+				&responseTopic{
 					ErrorCode:  ErrCode_UNKNOWN_TOPIC,
 					TopicName:  d.buildTopicName(query.TopicName),
 					TopicID:    [16]byte{},
 					IsInternal: 0,
-					PartitionArray: &PartitionArray{
+					PartitionArray: &partitionArray{
 						PartitionArrayLen: 0x01,
 					},
 					TopicAuthorizedOption: 0x00000df8,
@@ -257,7 +134,7 @@ func (d *DescribeTopicPartitionHandler) buildResponseTopicArray() *ResponseTopic
 		}
 		partitions, _ := meta_data.GetMetaDataService().QueryTopicPartitions(query.TopicName)
 		ta.ResponseTopicList = append(ta.ResponseTopicList,
-			&ResponseTopic{
+			&responseTopic{
 				ErrorCode:             0,
 				TopicName:             d.buildTopicName(query.TopicName),
 				TopicID:               topic.TopicUUID,
@@ -270,32 +147,32 @@ func (d *DescribeTopicPartitionHandler) buildResponseTopicArray() *ResponseTopic
 	return ta
 }
 
-func (d *DescribeTopicPartitionHandler) buildPartitionArray(partitions []*meta_data.PartitionRecord) *PartitionArray {
-	pr := &PartitionArray{
-		Partitions: make([]*Partition, 0, len(partitions)),
+func (d *describeTopicPartitionHandler) buildPartitionArray(partitions []*meta_data.PartitionRecord) *partitionArray {
+	pr := &partitionArray{
+		Partitions: make([]*partition, 0, len(partitions)),
 	}
 
 	for _, p := range partitions {
-		pr.Partitions = append(pr.Partitions, &Partition{
+		pr.Partitions = append(pr.Partitions, &partition{
 			ErrorCode:      0x0000,
 			PartitionIndex: p.PartitionID,
 			LeaderID:       p.LeaderID,
 			LeaderEpoch:    p.LeaderEpoch,
-			ReplicaNodeInfo: &ReplicaNodeInfo{
+			ReplicaNodeInfo: &replicaNodeInfo{
 				ArrayLength:   p.LengthOfReplicaArray,
 				ReplicateNode: p.ReplicaArray,
 			},
-			ISRNodes: &ISRNodes{
+			ISRNodes: &isrNodes{
 				ArrayLength: p.LengthOfInSyncReplicaArray,
 				ISRNodeID:   p.InSyncReplicaArray,
 			},
-			EligibleLeaderReplicas: &EligibleLeaderReplicas{
+			EligibleLeaderReplicas: &eligibleLeaderReplicas{
 				ArrayLength: 0,
 			},
-			LastKnownELR: &LastKnownELR{
+			LastKnownELR: &lastKnownELR{
 				ArrayLength: 0,
 			},
-			OfflineReplicas: &OfflineReplicas{
+			OfflineReplicas: &offlineReplicas{
 				ArrayLength: 0,
 			},
 		})
@@ -306,15 +183,15 @@ func (d *DescribeTopicPartitionHandler) buildPartitionArray(partitions []*meta_d
 	return pr
 }
 
-func (d *DescribeTopicPartitionHandler) buildTopicName(name []byte) *ResponseTopicName {
-	topicName := &ResponseTopicName{}
+func (d *describeTopicPartitionHandler) buildTopicName(name []byte) *responseTopicName {
+	topicName := &responseTopicName{}
 	topicName.StringContent = name
 	topicName.StringLength = uint8(len(topicName.StringContent) + 1)
 	return topicName
 }
 
-func (d *DescribeTopicPartitionHandler) buildBody() *DescribePartitionResponseBody {
-	body := &DescribePartitionResponseBody{
+func (d *describeTopicPartitionHandler) buildBody() *describePartitionResponseBody {
+	body := &describePartitionResponseBody{
 		ThrottleTime: 0,
 		TopicArray:   d.buildResponseTopicArray(),
 		NextCursor:   0xff,
@@ -323,10 +200,10 @@ func (d *DescribeTopicPartitionHandler) buildBody() *DescribePartitionResponseBo
 	return body
 }
 
-func (d *DescribeTopicPartitionHandler) BuildResponse() *DescribePartitionResponse {
+func (d *describeTopicPartitionHandler) buildResponse() *describePartitionResponse {
 	header := d.buildHeader()
 	body := d.buildBody()
-	resp := &DescribePartitionResponse{
+	resp := &describePartitionResponse{
 		Header: header,
 		Body:   body,
 	}
@@ -335,94 +212,102 @@ func (d *DescribeTopicPartitionHandler) BuildResponse() *DescribePartitionRespon
 	return resp
 }
 
-func (d *DescribeTopicPartitionHandler) HandleAPIEvent(req *RequestMetaInfo, conn net.Conn) {
-	fmt.Println("handle DescribeTopicPartition")
-	d.meta = req
+func (d *describeTopicPartitionHandler) buildReq(meta *RequestMetaInfo, bodyReader io.Reader) *describeTopicPartitionRequest {
+	r := &describeTopicPartitionRequest{}
+
+	r.MessageSize = meta.MessageSize
+	r.Header = meta.Header
+
+	body := &describeTopicPartitionRequestBody{}
+	body.Decode(bodyReader)
+	r.Body = body
+
+	return r
+}
+
+func (d *describeTopicPartitionHandler) HandleAPIEvent(meta *RequestMetaInfo, bodyReader io.Reader, conn net.Conn) {
+	d.req = d.buildReq(meta, bodyReader)
 	d.conn = conn
-	d.reqBody = d.ParseRequestBody()
-	resp := d.BuildResponse()
+	resp := d.buildResponse()
 
-	d.WriteResponse(resp)
+	d.writeResponse(resp)
 }
 
-func (d *DescribeTopicPartitionHandler) writeMessageSize(resp *DescribePartitionResponse) {
-	util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.MessageSize), d.conn)
-}
-
-func (d *DescribeTopicPartitionHandler) writeTagBuffer() {
-	util.WriteBytes([]byte{0x00}, d.conn)
-}
-
-func (d *DescribeTopicPartitionHandler) writeResponseHeader(resp *DescribePartitionResponse) {
-	util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.Header.CorrelationID), d.conn)
-	d.writeTagBuffer()
-}
-
-func (d *DescribeTopicPartitionHandler) writeThrottleTime(resp *DescribePartitionResponse) {
-	util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, resp.Body.ThrottleTime), d.conn)
-}
-
-func (d *DescribeTopicPartitionHandler) writeTopicArrayLength(resp *DescribePartitionResponse) {
-	util.WriteBytes([]byte{resp.Body.TopicArray.ArrayLength}, d.conn)
-}
-
-func (d *DescribeTopicPartitionHandler) writeTopicArray(resp *DescribePartitionResponse) {
-	d.writeTopicArrayLength(resp)
-	for _, topic := range resp.Body.TopicArray.ResponseTopicList {
-		d.writeTopic(topic)
+func (r *responseTopicArray) Encode() []byte {
+	buf := &bytes.Buffer{}
+	buf.Write([]byte{r.ArrayLength})
+	for _, topic := range r.ResponseTopicList {
+		buf.Write(topic.Encode())
 	}
+
+	return buf.Bytes()
 }
 
-func (d *DescribeTopicPartitionHandler) writeNextCursor(resp *DescribePartitionResponse) {
-	util.WriteBytes([]byte{resp.Body.NextCursor}, d.conn)
+func (r *describePartitionResponse) Encode() []byte {
+	buf := &bytes.Buffer{}
+
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.MessageSize))
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.Header.CorrelationID))
+	buf.Write([]byte{0x00})
+
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.Body.ThrottleTime))
+	buf.Write(r.Body.TopicArray.Encode())
+	buf.Write([]byte{r.Body.NextCursor})
+	buf.Write([]byte{0x00})
+
+	return buf.Bytes()
 }
 
-func (d *DescribeTopicPartitionHandler) writeResponseBody(resp *DescribePartitionResponse) {
-	d.writeThrottleTime(resp)
-	d.writeTopicArray(resp)
-	d.writeNextCursor(resp)
-	d.writeTagBuffer()
+func (d *describeTopicPartitionHandler) writeResponse(resp *describePartitionResponse) {
+	_, _ = d.conn.Write(resp.Encode())
 }
 
-func (d *DescribeTopicPartitionHandler) WriteResponse(resp *DescribePartitionResponse) {
-	d.writeMessageSize(resp)
-	d.writeResponseHeader(resp)
-	d.writeResponseBody(resp)
+func (t *responseTopic) Encode() []byte {
+	buf := &bytes.Buffer{}
+	buf.Write(binary.BigEndian.AppendUint16([]byte{}, t.ErrorCode))
+	buf.Write([]byte{t.TopicName.StringLength})
+	buf.Write(t.TopicName.StringContent)
+	topicID := make([]byte, len(t.TopicID))
+	copy(topicID, t.TopicID[:])
+	buf.Write(topicID)
+	buf.Write([]byte{t.IsInternal})
+
+	buf.Write(t.PartitionArray.Encode())
+
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, t.TopicAuthorizedOption))
+	buf.Write([]byte{0x00})
+
+	return buf.Bytes()
 }
 
-func (d *DescribeTopicPartitionHandler) writeTopic(topic *ResponseTopic) {
-	util.WriteBytes(binary.BigEndian.AppendUint16([]byte{}, topic.ErrorCode), d.conn)
-	util.WriteBytes([]byte{topic.TopicName.StringLength}, d.conn)
-	util.WriteBytes(topic.TopicName.StringContent, d.conn)
-	topicID := make([]byte, len(topic.TopicID))
-	copy(topicID, topic.TopicID[:])
-	util.WriteBytes(topicID, d.conn)
-	util.WriteBytes([]byte{topic.IsInternal}, d.conn)
-
-	d.writePartitionArray(topic)
-
-	util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, topic.TopicAuthorizedOption), d.conn)
-	d.writeTagBuffer()
-}
-
-func (d *DescribeTopicPartitionHandler) writePartitionArray(topic *ResponseTopic) {
-	util.WriteBytes([]byte{topic.PartitionArray.PartitionArrayLen}, d.conn)
-	for _, p := range topic.PartitionArray.Partitions {
-		util.WriteBytes(binary.BigEndian.AppendUint16([]byte{}, p.ErrorCode), d.conn)
-		util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, p.PartitionIndex), d.conn)
-		util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, p.LeaderID), d.conn)
-		util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, p.LeaderEpoch), d.conn)
-		util.WriteBytes([]byte{p.ReplicaNodeInfo.ArrayLength}, d.conn)
-		util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, p.ReplicaNodeInfo.ReplicateNode), d.conn)
-		util.WriteBytes([]byte{p.ISRNodes.ArrayLength}, d.conn)
-		util.WriteBytes(binary.BigEndian.AppendUint32([]byte{}, p.ISRNodes.ISRNodeID), d.conn)
-		util.WriteBytes([]byte{p.EligibleLeaderReplicas.ArrayLength}, d.conn)
-		util.WriteBytes([]byte{p.LastKnownELR.ArrayLength}, d.conn)
-		util.WriteBytes([]byte{p.OfflineReplicas.ArrayLength}, d.conn)
-		d.writeTagBuffer()
+func (pa *partitionArray) Encode() []byte {
+	buf := &bytes.Buffer{}
+	buf.Write([]byte{pa.PartitionArrayLen})
+	for _, p := range pa.Partitions {
+		buf.Write(p.Encode())
 	}
+	return buf.Bytes()
+}
+
+func (p *partition) Encode() []byte {
+	buf := &bytes.Buffer{}
+
+	buf.Write(binary.BigEndian.AppendUint16([]byte{}, p.ErrorCode))
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, p.PartitionIndex))
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, p.LeaderID))
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, p.LeaderEpoch))
+	buf.Write([]byte{p.ReplicaNodeInfo.ArrayLength})
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, p.ReplicaNodeInfo.ReplicateNode))
+	buf.Write([]byte{p.ISRNodes.ArrayLength})
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, p.ISRNodes.ISRNodeID))
+	buf.Write([]byte{p.EligibleLeaderReplicas.ArrayLength})
+	buf.Write([]byte{p.LastKnownELR.ArrayLength})
+	buf.Write([]byte{p.OfflineReplicas.ArrayLength})
+	buf.Write([]byte{0x00})
+
+	return buf.Bytes()
 }
 
 func NewDescribeTopicPartitionHandler() APIHandler {
-	return &DescribeTopicPartitionHandler{}
+	return &describeTopicPartitionHandler{}
 }

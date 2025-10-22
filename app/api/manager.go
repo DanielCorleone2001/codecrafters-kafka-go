@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/codecrafters-io/kafka-starter-go/app/util"
 	"io"
 	"net"
-	"os"
 	"strings"
 )
 
@@ -26,103 +26,76 @@ func NewConnManager(conn net.Conn) *ConnManager {
 	}
 }
 
-func (h APICommonRequestHeader) String() string {
+func (r *CommonAPIRequestHeader) String() string {
 	sb := &strings.Builder{}
-	_, _ = fmt.Fprintf(sb, "api key:%d\n", h.RequestAPIKey)
-	_, _ = fmt.Fprintf(sb, "api version:%d\n", h.RequestAPIVersion)
-	_, _ = fmt.Fprintf(sb, "CorrelationID:%d\n", h.CorrelationID)
-	_, _ = fmt.Fprintf(sb, "ClientID:%s\n", h.ClientID.Contents)
+	_, _ = fmt.Fprintf(sb, "api key:%d\n", r.RequestAPIKey)
+	_, _ = fmt.Fprintf(sb, "api version:%d\n", r.RequestAPIVersion)
+	_, _ = fmt.Fprintf(sb, "CorrelationID:%d\n", r.CorrelationID)
+	_, _ = fmt.Fprintf(sb, "ClientID:%s\n", r.ClientID.Contents)
 	return sb.String()
 }
 
-type APICommonRequestHeader struct {
+type CommonAPIRequestHeader struct {
 	RequestAPIKey     uint16
 	RequestAPIVersion uint16
 	CorrelationID     uint32
-	ClientID          *RequestHeaderClientID
+	ClientID          *CommonAPIRequestHeaderClientID
 }
 
-type RequestHeaderClientID struct {
+func (r *CommonAPIRequestHeader) Equal(b *CommonAPIRequestHeader) bool {
+	return r.RequestAPIKey == b.RequestAPIKey &&
+		r.RequestAPIVersion == b.RequestAPIVersion &&
+		r.CorrelationID == b.CorrelationID &&
+		r.ClientID.Equal(b.ClientID)
+}
+
+type CommonAPIRequestHeaderClientID struct {
 	Length   uint16
 	Contents []byte
 }
 
-func (m *ConnManager) readLength(readLen int, reader io.Reader) []byte {
-	b := make([]byte, readLen)
-	n, err := reader.Read(b)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	if n != readLen {
-		panic(fmt.Sprintf("read want:%d, has:%d", readLen, n))
-	}
-
-	return b
-}
-func (m *ConnManager) readMessageSize() uint32 {
-	return binary.BigEndian.Uint32(m.readLength(4, m.conn))
+func (c *CommonAPIRequestHeaderClientID) Equal(b *CommonAPIRequestHeaderClientID) bool {
+	return c.Length == b.Length && bytes.Equal(c.Contents, b.Contents)
 }
 
-func (m *ConnManager) readRequestAPIKey(reader io.Reader) uint16 {
-	return binary.BigEndian.Uint16(m.readLength(2, reader))
-}
-
-func (m *ConnManager) readRequestAPIVersion(reader io.Reader) uint16 {
-	return binary.BigEndian.Uint16(m.readLength(2, reader))
-}
-
-func (m *ConnManager) readCorrelationID(reader io.Reader) uint32 {
-	return binary.BigEndian.Uint32(m.readLength(4, reader))
-}
-
-func (m *ConnManager) readRequestHeaderClientID(reader io.Reader) *RequestHeaderClientID {
-	length := binary.BigEndian.Uint16(m.readLength(2, reader))
-	content := m.readLength(int(length), reader)
-	return &RequestHeaderClientID{
-		Length:   length,
-		Contents: content,
-	}
-}
-
-func (m *ConnManager) readTagBuffer(reader io.Reader) {
-	m.readLength(1, reader)
+func (c *CommonAPIRequestHeaderClientID) Decode(reader io.Reader) {
+	c.Length = binary.BigEndian.Uint16(util.ReadN(2, reader))
+	c.Contents = util.ReadN(int(c.Length), reader)
 }
 
 type RequestMetaInfo struct {
-	MessageSize    uint32
-	Header         *APICommonRequestHeader
-	BodyDataSource io.Reader
+	MessageSize uint32
+	Header      *CommonAPIRequestHeader
 }
 
 type ResponseHeader struct {
 	CorrelationID uint32
 }
 
-func (m *ConnManager) ParseRequestMetaInfo() *RequestMetaInfo {
-	messageSize := m.readMessageSize()
+func (r *CommonAPIRequestHeader) Decode(reader io.Reader) {
+	r.RequestAPIKey = binary.BigEndian.Uint16(util.ReadN(2, reader))
+	r.RequestAPIVersion = binary.BigEndian.Uint16(util.ReadN(2, reader))
+	r.CorrelationID = binary.BigEndian.Uint32(util.ReadN(4, reader))
 
-	buffer := bytes.NewBuffer(m.readLength(int(messageSize), m.conn))
+	cid := &CommonAPIRequestHeaderClientID{}
+	cid.Decode(reader)
+	r.ClientID = cid
 
-	requestAPIKey := m.readRequestAPIKey(buffer)
-	requestAPIVersion := m.readRequestAPIVersion(buffer)
-	correlationID := m.readCorrelationID(buffer)
-	cid := m.readRequestHeaderClientID(buffer)
-	m.readTagBuffer(buffer)
+	util.ReadN(1, reader)
+}
 
-	header := &APICommonRequestHeader{
-		RequestAPIKey:     requestAPIKey,
-		RequestAPIVersion: requestAPIVersion,
-		CorrelationID:     correlationID,
-		ClientID:          cid,
-	}
+func ParseRequestMetaInfo(reader io.Reader) (*RequestMetaInfo, io.Reader) {
+	messageSize := binary.BigEndian.Uint32(util.ReadN(4, reader))
 
-	fmt.Println(header)
+	buffer := bytes.NewBuffer(util.ReadN(int(messageSize), reader))
+
+	header := &CommonAPIRequestHeader{}
+	header.Decode(buffer)
+
 	return &RequestMetaInfo{
-		MessageSize:    messageSize,
-		Header:         header,
-		BodyDataSource: buffer,
-	}
+		MessageSize: messageSize,
+		Header:      header,
+	}, buffer
 }
 
 func (m *ConnManager) BuildConnHandler(rm *RequestMetaInfo) APIHandler {
@@ -140,8 +113,8 @@ func (m *ConnManager) BuildConnHandler(rm *RequestMetaInfo) APIHandler {
 func HandleConn(conn net.Conn) {
 	m := NewConnManager(conn)
 	for {
-		rm := m.ParseRequestMetaInfo()
+		rm, bodyReader := ParseRequestMetaInfo(conn)
 		h := m.BuildConnHandler(rm)
-		h.HandleAPIEvent(rm, conn)
+		h.HandleAPIEvent(rm, bodyReader, conn)
 	}
 }

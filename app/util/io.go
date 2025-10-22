@@ -7,16 +7,16 @@ import (
 	"runtime/debug"
 )
 
-func ReadLength(readLen int, reader io.Reader) []byte {
-	b := make([]byte, readLen)
-	n, err := reader.Read(b)
+func ReadN(n int, reader io.Reader) []byte {
+	b := make([]byte, n)
+	read, err := reader.Read(b)
 	if err != nil { //todo?
 		fmt.Println(err)
 		fmt.Println(string(debug.Stack()))
 		os.Exit(1)
 	}
-	if n != readLen {
-		panic(fmt.Sprintf("read want:%d, has:%d", readLen, n))
+	if n != read {
+		panic(fmt.Sprintf("read want:%d, has:%d", n, read))
 	}
 
 	return b
