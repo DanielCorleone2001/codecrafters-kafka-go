@@ -19,15 +19,25 @@ func (r *apiVersionRequest) Equal(b *apiVersionRequest) bool {
 		r.Body.Equal(b.Body)
 }
 
+func (r *CommonAPIRequestHeader) Encode() []byte {
+	buf := &bytes.Buffer{}
+
+	buf.Write(binary.BigEndian.AppendUint16([]byte{}, r.RequestAPIKey))
+	buf.Write(binary.BigEndian.AppendUint16([]byte{}, r.RequestAPIVersion))
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.CorrelationID))
+	buf.Write(binary.BigEndian.AppendUint16([]byte{}, r.ClientID.Length))
+	buf.Write(r.ClientID.Contents)
+	buf.Write([]byte{0x00})
+
+	return buf.Bytes()
+}
+
 func (r *apiVersionRequest) Encode() []byte {
 	buf := &bytes.Buffer{}
 	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.MessageSize))
-	buf.Write(binary.BigEndian.AppendUint16([]byte{}, r.Header.RequestAPIKey))
-	buf.Write(binary.BigEndian.AppendUint16([]byte{}, r.Header.RequestAPIVersion))
-	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.Header.CorrelationID))
-	buf.Write(binary.BigEndian.AppendUint16([]byte{}, r.Header.ClientID.Length))
-	buf.Write(r.Header.ClientID.Contents)
-	buf.Write([]byte{0x00})
+
+	buf.Write(r.Header.Encode())
+
 	buf.Write([]byte{r.Body.apiVersionRequestBodyClientID.Length})
 	buf.Write(r.Body.apiVersionRequestBodyClientID.Contents)
 	buf.Write([]byte{r.Body.apiVersionClientSoftwareVersion.Length})

@@ -14,6 +14,8 @@ import (
 type describeTopicPartitionHandler struct {
 	req  *describeTopicPartitionRequest
 	conn net.Conn
+
+	metadataSvc meta_data.MetaDataService
 }
 
 func (b *describeTopicPartitionRequestBody) String() string {
@@ -118,7 +120,7 @@ func (d *describeTopicPartitionHandler) buildResponseTopicArray() *responseTopic
 	}
 	ta.ArrayLength = uint8(len(ta.ResponseTopicList) + 1)
 	for _, query := range d.req.Body.TopicList {
-		topic, err := meta_data.GetMetaDataService().QueryTopic(query.TopicName)
+		topic, err := d.metadataSvc.QueryTopic(query.TopicName)
 		if err != nil { //topic not found
 			ta.ResponseTopicList = append(ta.ResponseTopicList,
 				&responseTopic{
@@ -133,7 +135,7 @@ func (d *describeTopicPartitionHandler) buildResponseTopicArray() *responseTopic
 				})
 			continue
 		}
-		partitions, _ := meta_data.GetMetaDataService().QueryTopicPartitions(query.TopicName)
+		partitions, _ := d.metadataSvc.QueryTopicPartitions(query.TopicName)
 		ta.ResponseTopicList = append(ta.ResponseTopicList,
 			&responseTopic{
 				ErrorCode:             0,
@@ -240,37 +242,31 @@ func (d *describeTopicPartitionHandler) HandleAPIEvent(meta *RequestMetaInfo, bo
 	d.writeResponse(resp)
 }
 
-func (r *responseTopicArray) Encode() []byte {
-	buf := &bytes.Buffer{}
+func (r *responseTopicArray) Encode(buf *bytes.Buffer) {
 	buf.Write([]byte{r.ArrayLength})
 	for _, topic := range r.ResponseTopicList {
-		buf.Write(topic.Encode())
+		topic.Encode(buf)
 	}
-
-	return buf.Bytes()
 }
 
-func (r *describePartitionResponse) Encode() []byte {
-	buf := &bytes.Buffer{}
-
+func (r *describePartitionResponse) Encode(buf *bytes.Buffer) {
 	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.MessageSize))
 	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.Header.CorrelationID))
 	buf.Write([]byte{0x00})
 
 	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.Body.ThrottleTime))
-	buf.Write(r.Body.TopicArray.Encode())
+	r.Body.TopicArray.Encode(buf)
 	buf.Write([]byte{r.Body.NextCursor})
 	buf.Write([]byte{0x00})
-
-	return buf.Bytes()
 }
 
 func (d *describeTopicPartitionHandler) writeResponse(resp *describePartitionResponse) {
-	_, _ = d.conn.Write(resp.Encode())
+	buf := &bytes.Buffer{}
+	resp.Encode(buf)
+	_, _ = d.conn.Write(buf.Bytes())
 }
 
-func (t *responseTopic) Encode() []byte {
-	buf := &bytes.Buffer{}
+func (t *responseTopic) Encode(buf *bytes.Buffer) {
 	buf.Write(binary.BigEndian.AppendUint16([]byte{}, t.ErrorCode))
 	buf.Write([]byte{t.TopicName.StringLength})
 	buf.Write(t.TopicName.StringContent)
@@ -283,8 +279,6 @@ func (t *responseTopic) Encode() []byte {
 
 	buf.Write(binary.BigEndian.AppendUint32([]byte{}, t.TopicAuthorizedOption))
 	buf.Write([]byte{0x00})
-
-	return buf.Bytes()
 }
 
 func (pa *partitionArray) Encode() []byte {
@@ -315,6 +309,44 @@ func (p *partition) Encode() []byte {
 	return buf.Bytes()
 }
 
-func NewDescribeTopicPartitionHandler() APIHandler {
-	return &describeTopicPartitionHandler{}
+func (r *requestTopicArray) Encode() []byte {
+	buf := &bytes.Buffer{}
+
+	buf.Write([]byte{r.ArrayLength})
+
+	for _, t := range r.TopicList {
+		buf.Write(t.Encode())
+	}
+
+	return buf.Bytes()
+}
+
+func (r *requestTopic) Encode() []byte {
+	buf := &bytes.Buffer{}
+
+	buf.Write([]byte{r.TopicNameLength})
+	buf.Write(r.TopicName)
+	buf.Write([]byte{0x00})
+
+	return buf.Bytes()
+}
+func (r *describeTopicPartitionRequest) Encode() []byte {
+	buf := &bytes.Buffer{}
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.MessageSize))
+
+	buf.Write(r.Header.Encode())
+
+	buf.Write(r.Body.requestTopicArray.Encode())
+
+	buf.Write(binary.BigEndian.AppendUint32([]byte{}, r.Body.ResponsePartitionLimit))
+	buf.Write([]byte{r.Body.Cursor})
+	buf.Write([]byte{0x00})
+
+	return buf.Bytes()
+}
+
+func NewDescribeTopicPartitionHandler(svc meta_data.MetaDataService) APIHandler {
+	return &describeTopicPartitionHandler{
+		metadataSvc: svc,
+	}
 }

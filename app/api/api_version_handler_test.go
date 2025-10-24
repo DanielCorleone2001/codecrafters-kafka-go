@@ -2,8 +2,10 @@ package api
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"github.com/codecrafters-io/kafka-starter-go/app/mock"
+	"github.com/codecrafters-io/kafka-starter-go/app/util"
 	"io"
 	"testing"
 )
@@ -71,7 +73,7 @@ func TestApiVersionHandler_HandleAPIEvent(t *testing.T) {
 
 	conn := mock.NewFakeConn(reader, writer)
 
-	meta, bodyReader := ParseRequestMetaInfo(reader)
+	meta, bodyReader := ParseRequestMetaInfo(reader, binary.BigEndian.Uint32(util.ReadN(4, reader)))
 	h := NewAPIVersionHandler(conn)
 	h.HandleAPIEvent(meta, bodyReader, conn)
 

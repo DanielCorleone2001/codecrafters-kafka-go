@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/codecrafters-io/kafka-starter-go/app/meta_data"
 	"github.com/codecrafters-io/kafka-starter-go/app/util"
 	"io"
 	"net"
@@ -103,7 +104,7 @@ func (m *ConnManager) BuildConnHandler(rm *RequestMetaInfo) APIHandler {
 	case APIType_APIVersions:
 		return NewAPIVersionHandler(m.conn)
 	case APIType_DescribeTopicPartitions:
-		return NewDescribeTopicPartitionHandler()
+		return NewDescribeTopicPartitionHandler(meta_data.GetMetaDataService())
 	default:
 		return &todoHandler{}
 	}
